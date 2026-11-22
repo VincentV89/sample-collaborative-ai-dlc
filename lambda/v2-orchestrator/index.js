@@ -1071,6 +1071,7 @@ const handler = async (event, ctx, deps = defaultDeps()) => {
         tierModels,
         requestedCli,
         mcpServersByTier,
+        awsTestInfrastructure: meta.awsTestInfrastructure,
         customRules,
         attachments,
         sessionId: stageSessionId,
@@ -3070,6 +3071,7 @@ const runStage = async (
     tierModels = null,
     requestedCli,
     mcpServersByTier,
+    awsTestInfrastructure,
     customRules,
     attachments,
     sessionId,
@@ -3117,6 +3119,9 @@ const runStage = async (
     invokeRuntime(
       {
         command: 'run-stage-start',
+        ...(stage.stageId === 'aws-infrastructure-test' && awsTestInfrastructure
+          ? { awsTestInfrastructure }
+          : {}),
         // Launch-latency anchor (cold start metric): stamped at dispatch,
         // INSIDE the step so a memoized replay never re-stamps it. The
         // container computes agentLaunchMs = accept − dispatchedAt, covering

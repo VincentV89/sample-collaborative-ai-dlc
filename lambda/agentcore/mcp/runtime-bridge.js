@@ -1,3 +1,9 @@
+import { randomUUID } from 'node:crypto';
+import {
+  cleanupReservedStack,
+  currentAwsTestStage,
+  AWS_TEST_STAGE_ID,
+} from '../aws-test-infrastructure-session.js';
 import { createServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { mkdtemp, chmod, rm } from 'node:fs/promises';
@@ -26,6 +32,27 @@ export const createRuntimeMcpBridge = async ({
   const ambient = { ...runtimeEnv };
   for (const key of CREDENTIAL_ADAPTER_ENV_NAMES) delete ambient[key];
   const serverEnv = { ...ambient, ...trustedEnv };
+  const testStage = currentAwsTestStage();
+  const name = `aidlc-test-${randomUUID()}`;
+  const reservation = path.join(directory, 'aws-test-stack');
+  const testConfig =
+    testStage &&
+    trustedEnv.V2_STAGE_ID === AWS_TEST_STAGE_ID &&
+    trustedEnv.V2_MCP_ROLE === 'author' &&
+    trustedEnv.V2_MCP_MODE === 'stage' &&
+    trustedEnv.V2_CHECKPOINT_OWNER !== '0' &&
+    trustedEnv.V2_DESCRIBE_CHANGES === '1'
+      ? testStage.config
+      : null;
+  delete serverEnv.AIDLC_AWS_TEST_CONFIG;
+  delete serverEnv.AIDLC_AWS_TEST_STACK;
+  delete serverEnv.AIDLC_AWS_TEST_RESERVATION;
+  if (testConfig) {
+    serverEnv.AIDLC_AWS_TEST_CONFIG = JSON.stringify(testConfig);
+    serverEnv.AIDLC_AWS_TEST_STACK = name;
+    serverEnv.AIDLC_AWS_TEST_RESERVATION = reservation;
+  }
+
   for (const key of INFERENCE_CREDENTIAL_ENV) delete serverEnv[key];
   const server = createServer((socket) => {
     sockets.add(socket);
@@ -67,7 +94,7 @@ export const createRuntimeMcpBridge = async ({
     throw error;
   }
   let disposed = false;
-  return {
+  const bridge = {
     socketPath,
     async dispose() {
       if (disposed) return;
@@ -75,7 +102,18 @@ export const createRuntimeMcpBridge = async ({
       for (const socket of sockets) socket.destroy();
       for (const child of children) child.kill('SIGKILL');
       await new Promise((resolve) => server.close(resolve));
-      await rm(directory, { recursive: true, force: true });
+      try {
+        if (testConfig) await cleanupReservedStack(testConfig, name, reservation);
+      } catch (error) {
+        console.error(
+          `[aws-test-infrastructure] Could not verify deletion of ${name} (${error.name})`,
+        );
+        throw error;
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
     },
   };
+  if (testConfig) testStage.registerCleanup(() => bridge.dispose());
+  return bridge;
 };

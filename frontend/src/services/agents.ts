@@ -190,7 +190,15 @@ export interface AgentCapabilities {
   };
 }
 
+export interface AwsTestInfrastructure {
+  projectId: string;
+  roleArn: string;
+  cleanupRoleArn: string;
+  region: string;
+}
+
 export interface AgentSettings {
+  awsTestInfrastructure?: AwsTestInfrastructure | null;
   /** Effective inference region. Absent from older backends. */
   bedrockRegion?: string;
   /** Platform admins only. Draft and applied SRT settings are independent. */
@@ -276,6 +284,7 @@ export interface McpVerifyResponse {
 }
 
 export interface AgentSettingsUpdate {
+  awsTestInfrastructure?: AwsTestInfrastructure | null;
   reviewId?: string;
   /** New bearer token value. Pass empty string to clear. Omit to leave unchanged. */
   bedrockBearerToken?: string;

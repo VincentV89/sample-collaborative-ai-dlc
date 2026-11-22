@@ -1,3 +1,4 @@
+import { registerAwsTestTools } from './aws-test-tools.js';
 // Runtime-owned stdio MCP server that forwards the built-in `aidlc` tools to
 // AgentCore Gateway. The runtime bridge spawns it in place of the local server
 // when the Gateway is enabled, so the four CLIs keep the same `aidlc` server
@@ -156,6 +157,7 @@ export const createGatewayProxyServer = ({ client, target, role, scope, env = pr
     z,
     env,
   });
+  registerAwsTestTools(server, z, env);
   return { server, registered };
 };
 

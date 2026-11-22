@@ -433,3 +433,14 @@ variable "notification_event_source" {
     error_message = "notification_event_source must be 1-256 characters of A-Z, a-z, 0-9, ., _ and -, and must not start with aws."
   }
 }
+
+variable "aws_test_role_arns" {
+  description = "Explicit IAM roles that AgentCore can assume for temporary CloudFormation test stacks."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for arn in var.aws_test_role_arns : can(regex("^arn:aws(-us-gov|-cn)?:iam::[0-9]{12}:role/[A-Za-z0-9_+=,.@/-]+$", arn))])
+    error_message = "List exact IAM role ARNs without wildcard characters."
+  }
+}

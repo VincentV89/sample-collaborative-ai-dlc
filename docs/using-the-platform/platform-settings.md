@@ -96,3 +96,22 @@ Not everything operator-facing lives on the Admin page:
 
 - **Workflow and block authoring** — the [Workflows](workflows.md) area, also gated on `platform-admin`.
 - **Infrastructure-level settings** — the upstream methodology pin (`aidlc_repo_ref`), the custom domain (`app_domain`), and the rest of the deployment configuration live in Terraform; see [Setup](../getting-started/setup.md).
+
+## AWS test infrastructure
+
+Platform admins can configure one optional connection under **Admin → Agents → AWS test infrastructure**. Select a space by its ID and provide a test AWS region, a deployment role ARN and a scheduled cleanup role ARN. Both roles belong to the test account. New intents in that space capture the connection at creation. Removing it from the console affects new intents. To revoke access for existing intents, revoke the deployment role trust or remove it from the Terraform allowlist after cleaning up any active stacks.
+
+Before saving the connection, add the exact deployment role ARN to the platform Terraform input `aws_test_role_arns` and apply the platform update. Configure the roles as follows:
+
+| Role              | Trust and permissions                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Test deployment   | Trust the platform's AgentCore runtime role. Permit CloudFormation create, describe and delete for `aidlc-test-*` stacks in the target region, plus the underlying resource operations needed by the test templates. Permit `scheduler:CreateSchedule` for `schedule/default/aidlc-test-*` in that region and `iam:PassRole` for the cleanup role with `iam:PassedToService` limited to `scheduler.amazonaws.com`. |
+| Scheduled cleanup | Trust EventBridge Scheduler, restricted to the test account and its default schedule group. Permit CloudFormation deletion of `aidlc-test-*` stacks in the target region and the underlying resource deletion operations.                                                                                                                                                                                          |
+
+Use an isolated AWS account and restrict both roles to the resources needed by the test. The roles cannot be provisioned by the test template itself.
+
+In **Workflows → Blocks**, create a stage with ID `aws-infrastructure-test` and add it after integration in the desired workflow. Instruct the stage to call `provision_aws_test_stack` with a JSON CloudFormation template, poll `aws_test_stack_status` until `CREATE_COMPLETE`, exercise the deployed service using its stack outputs, call `delete_aws_test_stack`, and provide the actual test results. If the tool is unavailable or provisioning fails, record live tests as unverified. Choose a stage artifact and review policy to fit the workflow.
+
+Each lead stage session can request one stack. The tool accepts inline JSON templates up to 51,200 bytes. The tool excludes IAM resources, nested stacks, custom resources, Scheduler resources and retain policies. The runtime uses short-lived IAM credentials internally. Agents receive stack outputs through the tool and can use those outputs to test the application without AWS CLI credentials.
+
+The runtime verifies deletion before the stage result is returned, including when the agent parks or fails. Run provisioning and testing in the same session. A resumed session needs a fresh stack. Before creating a stack, the tool registers an EventBridge schedule to request deletion after two hours if the runtime stops unexpectedly. The scheduled request does not verify that asynchronous deletion completed. Investigate `DELETE_FAILED` in CloudFormation, especially for resources that require application-specific cleanup such as non-empty buckets. The stage fails if its normal deletion check cannot confirm cleanup.

@@ -201,3 +201,28 @@ describe('personal agent credentials', () => {
     });
   });
 });
+
+describe('AWS test infrastructure settings', () => {
+  it('lets only platform admins manage the test role configuration', async () => {
+    const config = {
+      projectId: 'space-a',
+      region: 'us-east-1',
+      roleArn: 'arn:aws:iam::123456789012:role/test-deploy',
+      cleanupRoleArn: 'arn:aws:iam::123456789012:role/test-cleanup',
+    };
+    const input = { awsTestInfrastructure: config };
+    expect((await handler(event('PUT', input))).statusCode).toBe(403);
+    expect(ssmMock.commandCalls(PutParameterCommand)).toHaveLength(0);
+    ssmMock.on(PutParameterCommand).resolves({});
+    expect((await handler(event('PUT', input, 'platform-admin'))).statusCode).toBe(200);
+    const saved = ssmMock.commandCalls(PutParameterCommand)[0].args[0].input;
+    expect(saved.Name).toBe('/collab/dev/aws-test-infrastructure');
+    ssmMock.on(GetParametersCommand).resolves({ Parameters: [saved] });
+    expect(JSON.parse((await handler(event('GET'))).body)).not.toHaveProperty(
+      'awsTestInfrastructure',
+    );
+    expect(
+      JSON.parse((await handler(event('GET', undefined, 'platform-admin'))).body),
+    ).toHaveProperty('awsTestInfrastructure', config);
+  });
+});

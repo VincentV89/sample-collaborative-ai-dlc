@@ -1,3 +1,4 @@
+import { registerAwsTestTools } from './aws-test-tools.js';
 // MCP server entrypoint — spawned as a stdio child by the headless CLI
 // (--mcp-config points here). Reads the TRUSTED scope from ENV, wires the
 // graph-writer (Neptune) + process-bridge (DynamoDB + websocket) over the shared
@@ -74,6 +75,7 @@ export const startMcpServer = async ({ env = process.env, store: injectedStore }
     env,
   });
 
+  registerAwsTestTools(server, z, env);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`[agentcore-mcp] connected (role=${role}, tools=${registered.length})`);
