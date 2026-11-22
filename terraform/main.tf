@@ -752,6 +752,8 @@ module "yjs_server" {
 module "agentcore" {
   source = "./modules/compute/agentcore"
 
+  aws_test_role_arns = var.aws_test_role_arns
+
   iam_role_path                = var.iam_role_path
   iam_permissions_boundary_arn = var.iam_permissions_boundary_arn
 

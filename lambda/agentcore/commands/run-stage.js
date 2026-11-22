@@ -1,3 +1,4 @@
+import { currentAwsTestStage, withAwsTestStage } from '../aws-test-infrastructure-session.js';
 import { withCredentialSession } from '../credential-session.js';
 // run-stage — execute ONE workflow stage inside the AgentCore session.
 //
@@ -5204,6 +5205,12 @@ const runStageAttempt = async (
       .catch(() => {});
   }
 
+  try {
+    await currentAwsTestStage()?.cleanup();
+  } catch (error) {
+    return fail(stageInstanceId, error.code, error.message);
+  }
+
   // 7. Terminal success.
   await store.updateStageState({
     executionId,
@@ -5380,4 +5387,7 @@ export const __test = {
 };
 
 export const runStage = (payload, deps = {}) =>
-  withCredentialSession(() => runStageImplementation(payload, deps), { env: deps.env });
+  withCredentialSession(
+    () => withAwsTestStage(payload, () => runStageImplementation(payload, deps)),
+    { env: deps.env },
+  );

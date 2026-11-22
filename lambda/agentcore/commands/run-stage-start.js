@@ -168,7 +168,7 @@ export const createRunStageStart = ({
           result = {
             ok: false,
             state: 'FAILED',
-            reason: 'stage_job_crashed',
+            reason: err?.code === 'aws_test_cleanup_unverified' ? err.code : 'stage_job_crashed',
             detail: err?.message ?? String(err),
           };
         }

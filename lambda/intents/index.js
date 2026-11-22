@@ -1,3 +1,4 @@
+import { readAwsTestInfrastructure } from '../shared/aws-test-infrastructure-settings.js';
 import { reconcileYjsDeletion } from '../shared/yjs-revocation.js';
 import gremlin from 'gremlin';
 import { PartitionStrategy } from 'gremlin/lib/process/traversal-strategy.js';
@@ -919,6 +920,11 @@ const fetchProjectConfig = async (g, projectId) => {
     .next();
   const trackers = (trackerRes.value ?? []).map(mapBinding);
   const rawVersion = getVal(v, 'workflow_version');
+  const awsTestInfrastructure = await readAwsTestInfrastructure(
+    ssm,
+    process.env.AGENT_SETTINGS_SSM_PREFIX,
+  );
+
   // Snapshot the EFFECTIVE per-CLI model selection onto the intent so the run is
   // reproducible: the project's choice wins per CLI, the Admin global default
   // fills the gaps (project > global). run-stage's resolver then applies
@@ -953,6 +959,8 @@ const fetchProjectConfig = async (g, projectId) => {
     customRules = [];
   }
   return {
+    awsTestInfrastructure:
+      awsTestInfrastructure?.projectId === projectId ? awsTestInfrastructure : null,
     workflowId: getVal(v, 'workflow_id') || DEFAULT_WORKFLOW_ID,
     workflowVersion: rawVersion ? Number(rawVersion) : null,
     parkReleaseSeconds: Number(getVal(v, 'park_release_seconds') || 300),
@@ -6484,6 +6492,7 @@ const handleCreateIntent = async ({ event, body, projectId, sub, g, response }) 
     cliModels: cfg.cliModels,
     tierModels: cfg.tierModels,
     mcpServersByTier: cfg.mcpServersByTier,
+    ...(cfg.awsTestInfrastructure ? { awsTestInfrastructure: cfg.awsTestInfrastructure } : {}),
     customRules: cfg.customRules,
     environment,
     deriveEnrichment: await fetchDeriveEnrichment(),

@@ -25,6 +25,7 @@ import { AgentClisCard } from '@/components/admin/AgentClisCard';
 import { AgentSandboxingCard } from '@/components/admin/AgentSandboxingCard';
 import { DefaultModelsCard } from '@/components/admin/DefaultModelsCard';
 import { GlobalMcpServersCard } from '@/components/admin/GlobalMcpServersCard';
+import { AwsTestInfrastructureCard } from '@/components/admin/AwsTestInfrastructureCard';
 import { GraphEnrichmentCard } from '@/components/admin/GraphEnrichmentCard';
 import { StageSkippingCard } from '@/components/admin/StageSkippingCard';
 import { ComposerCard } from '@/components/admin/ComposerCard';
@@ -120,6 +121,7 @@ export default function PlatformAdmin() {
                 <AgentClisCard />
                 <DefaultModelsCard />
                 <GlobalMcpServersCard />
+                <AwsTestInfrastructureCard />
                 <GraphEnrichmentCard />
                 <StageSkippingCard />
                 <ComposerCard />

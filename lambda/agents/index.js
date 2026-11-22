@@ -1,3 +1,8 @@
+import {
+  awsTestInfrastructureParameter,
+  parseAwsTestInfrastructure,
+  validAwsTestInfrastructure,
+} from '../shared/aws-test-infrastructure-settings.js';
 import { discoverAgentModels } from '../shared/agent-model-discovery.js';
 // Agents Lambda — v1 agent HISTORY (read-only) + shared admin/model plumbing.
 //
@@ -736,6 +741,8 @@ export const handler = async (event, context) => {
       const composeLlmBypassPath = `${prefix}/compose-llm-bypass`;
       const prStrategyPath = `${prefix}/pr-strategy`;
       const disabledClisPath = disabledClisParameterName(prefix);
+      const awsTestPath = awsTestInfrastructureParameter(prefix);
+      const admin = isPlatformAdmin(event);
       try {
         const [result, platformCredentialStatus] = await Promise.all([
           ssm.send(
@@ -749,6 +756,7 @@ export const handler = async (event, context) => {
                 composeLlmBypassPath,
                 prStrategyPath,
                 disabledClisPath,
+                ...(admin ? [awsTestPath] : []),
               ],
               WithDecryption: true,
             }),
@@ -825,6 +833,11 @@ export const handler = async (event, context) => {
         // Return secrets as masked flags (never send the raw values to the browser)
         return response(200, {
           ...platformCredentialStatus,
+          ...(admin
+            ? {
+                awsTestInfrastructure: parseAwsTestInfrastructure(byName[awsTestPath]),
+              }
+            : {}),
           bedrockRegion: process.env.BEDROCK_REGION || process.env.AWS_REGION || 'us-east-1',
           ...(process.env.V2_PROCESS_TABLE
             ? {
@@ -874,6 +887,26 @@ export const handler = async (event, context) => {
         return response(400, { error: 'Invalid settings request' });
       }
       const errors = [];
+
+      if (Object.hasOwn(input, 'awsTestInfrastructure')) {
+        if (
+          Object.keys(input).length !== 1 ||
+          !validAwsTestInfrastructure(input.awsTestInfrastructure)
+        ) {
+          return response(400, {
+            error: 'Enter a space ID, region and two distinct role ARNs from the test account',
+          });
+        }
+        await ssm.send(
+          new PutParameterCommand({
+            Name: awsTestInfrastructureParameter(prefix),
+            Type: 'String',
+            Value: JSON.stringify(input.awsTestInfrastructure),
+            Overwrite: true,
+          }),
+        );
+        return response(200, { saved: true });
+      }
 
       if (Object.hasOwn(input, 'sandbox')) {
         // A sandbox operation is atomic and must not partially apply unrelated

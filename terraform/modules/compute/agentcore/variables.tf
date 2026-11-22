@@ -223,3 +223,14 @@ variable "enable_mcp_gateway" {
   type        = bool
   default     = false
 }
+
+variable "aws_test_role_arns" {
+  description = "Explicit IAM roles that AgentCore can assume for temporary CloudFormation test stacks."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for arn in var.aws_test_role_arns : can(regex("^arn:aws(-us-gov|-cn)?:iam::[0-9]{12}:role/[A-Za-z0-9_+=,.@/-]+$", arn))])
+    error_message = "List exact IAM role ARNs without wildcard characters."
+  }
+}

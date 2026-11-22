@@ -487,6 +487,7 @@ const buildExecutionMeta = ({
   // orchestrator forwards `mcpServersByTier` to run-stage. null = none.
   //   mcpServersByTier = { global: {<name>:{…}}, project: {<name>:{…}} }
   mcpServersByTier = null,
+  awsTestInfrastructure = null,
   // Legacy pre-tier field: a single merged name-keyed map (secrets inline). Still
   // read for back-compat when replaying an OLD execution row, but no longer
   // written. null = none / superseded by mcpServersByTier.
@@ -640,6 +641,7 @@ const buildExecutionMeta = ({
   cliModels,
   tierModels,
   mcpServersByTier,
+  ...(awsTestInfrastructure ? { awsTestInfrastructure } : {}),
   customMcpServers,
   customRules,
   environment,

@@ -854,3 +854,18 @@ data "awscc_bedrockagentcore_runtime" "stage_executor" {
   id         = awscc_bedrockagentcore_runtime.stage_executor.id
   depends_on = [awscc_bedrockagentcore_runtime.stage_executor]
 }
+
+resource "aws_iam_role_policy" "aws_test_infrastructure" {
+  count = length(var.aws_test_role_arns) > 0 ? 1 : 0
+  name  = "aws-test-infrastructure"
+  role  = aws_iam_role.agentcore.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sts:AssumeRole"]
+      Resource = sort(tolist(var.aws_test_role_arns))
+    }]
+  })
+}
